@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>138 Ferment Log | AppADay</title>
+<meta name="description" content="Track homebrew inventory, batches, fermentation readings, tanks, and packaged beer in a Google Sheet you own.">
+<meta name="theme-color" content="#1a1410">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#1a1410;--surface:#261d17;--raised:#2f241c;--border:#3a2d24;--edge:#5a4535;
+  --amber:#e0a526;--cream:#f3e9d7;--muted:#b5a48c;--hop:#8fb84a;--red:#d9534f;--ice:#8cc4e8;
+  --head:'Bitter',Georgia,'Times New Roman',serif;
+  --body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --r:12px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;min-height:100dvh;display:flex;flex-direction:column;background:var(--bg);color:var(--cream);font:15px/1.45 var(--body)}
+a{color:var(--amber)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+.top{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--border);padding-top:env(safe-area-inset-top)}
+.bar{display:flex;align-items:center;gap:6px;padding:10px 16px 4px;max-width:1040px;margin:0 auto}
+.brand{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.num{flex:none;font-family:var(--head);font-weight:700;font-size:15px;background:var(--amber);color:var(--bg);border-radius:8px;padding:6px 8px;line-height:1}
+.brand h1{font-family:var(--head);font-weight:600;font-size:20px;margin:0;line-height:1.15;white-space:nowrap}
+.synced{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand-text{min-width:0}
+.home{font-size:13px;padding:0 10px}
+
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);max-width:1040px;margin:0 auto}
+.tab{position:relative;min-height:46px;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);font-size:13px;font-weight:500;padding:0 2px;cursor:pointer}
+.tab:hover{color:var(--cream)}
+.tab.active{color:var(--cream);border-bottom-color:var(--amber)}
+.tcount{display:none;position:absolute;top:4px;right:4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10.5px;font-weight:600;line-height:17px;text-align:center}
+.tcount.show{display:block}
+
+main{flex:1;width:100%;max-width:1040px;margin:0 auto;padding:16px 16px 28px}
+.panel{display:none}
+.panel.active{display:block}
+.phead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:4px 0 14px;flex-wrap:wrap}
+.phead h2{font-family:var(--head);font-size:24px;margin:0;font-weight:600;line-height:1.15}
+.phead .meta{color:var(--muted);font-size:13px;margin-top:2px}
+
+.btn{min-height:44px;min-width:44px;padding:0 14px;border-radius:10px;border:1px solid var(--border);background:var(--raised);color:var(--cream);font-weight:500;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--edge)}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#1a1410;font-weight:600}
+.btn.ghost{background:transparent}
+.btn.icon{padding:0;width:44px;font-size:20px;line-height:1}
+.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.busy #syncBtn span{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.group{font-family:var(--head);font-size:15px;font-weight:600;color:var(--muted);margin:18px 0 8px}
+.group:first-of-type{margin-top:4px}
+.list{background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.row:first-child{border-top:0}
+.row-main{flex:1 1 130px;min-width:0}
+.row-title{font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row-sub{font-size:12.5px;color:var(--muted)}
+.row-note{font-size:13px;color:var(--cream);opacity:.85;margin-top:2px}
+.qty{font-family:var(--head);font-size:20px;font-weight:600;white-space:nowrap}
+.qty small{font-family:var(--body);font-size:12px;color:var(--muted);font-weight:400;margin-left:3px}
+.is-low .qty{color:var(--red)}
+.row-btns{display:flex;gap:6px;flex:none}
+.badge{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+.badge.low{color:var(--red)}
+.dim{opacity:.55}
+
+.stage{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;flex:none}
+.st-Planned{color:var(--muted)}
+.st-Brewed{color:#e8c47a}
+.st-Fermenting{color:var(--amber)}
+.st-Crashing{color:var(--ice)}
+.st-Carbonating{color:var(--hop)}
+.st-Packaged{color:var(--cream)}
+.st-Kicked{color:#8a7a66}
+
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.ctop{display:flex;gap:10px;align-items:flex-start}
+.bnum{font-family:var(--head);font-weight:700;color:var(--amber);font-size:22px;line-height:1.1;flex:none}
+.ctitle{flex:1;min-width:0}
+.ctitle h3{margin:0;font-family:var(--head);font-size:18px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+.sub{color:var(--muted);font-size:13px}
+.ings{font-size:12.5px;color:var(--muted);margin-top:12px;overflow-wrap:anywhere}
+.cacts{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+.card .list{margin-top:12px;background:var(--bg)}
+
+.tl{display:grid;grid-template-columns:repeat(7,1fr);margin-top:14px}
+.step{position:relative;text-align:center;font-size:10px;color:var(--muted);padding-top:19px;min-width:0;line-height:1.25}
+.step::before{content:'';position:absolute;top:6px;left:-50%;width:100%;height:2px;background:var(--border)}
+.step:first-child::before{display:none}
+.step::after{content:'';position:absolute;top:1px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--bg);border:2px solid var(--edge)}
+.step.done{color:var(--cream)}
+.step.done::before{background:var(--amber)}
+.step.done::after{background:var(--amber);border-color:var(--amber)}
+.step.cur::after{box-shadow:0 0 0 4px rgba(224,165,38,.28)}
+.step .d{display:block;color:var(--muted);font-size:10px}
+
+.fbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.fbar .fld{flex:1 1 200px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}
+@media (min-width:720px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px}
+.stat .v{font-family:var(--head);font-size:26px;font-weight:600;line-height:1.1}
+.stat .l{font-size:12.5px;color:var(--muted);margin-top:4px}
+.stat.og .v{color:var(--amber)}
+.chart{position:relative;height:clamp(230px,42vh,400px);background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px}
+.chart p{margin:0;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);text-align:center;padding:20px}
+.sectitle{font-family:var(--head);font-size:17px;font-weight:600;margin:20px 0 8px}
+
+.tank{display:flex;gap:14px;align-items:flex-start}
+.vessel{flex:none;width:76px;height:auto;display:block}
+.vessel .bub{animation:rise 2.4s ease-in infinite;transform-box:fill-box}
+.vessel .bub:nth-child(2n){animation-duration:3.1s;animation-delay:-1.2s}
+.vessel .bub:nth-child(3n){animation-duration:2s;animation-delay:-.6s}
+@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:.9}100%{transform:translateY(-14px);opacity:0}}
+.tstate{font-size:12.5px;font-weight:600;margin-top:4px}
+.ts-Fermenting{color:var(--amber)}.ts-Crashing{color:var(--ice)}.ts-Carbonating{color:var(--hop)}
+.ts-Reserved{color:var(--amber)}.ts-Dirty{color:#c08a5a}.ts-Clean{color:var(--cream)}.ts-Sanitized{color:var(--hop)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px}
+.seg button{min-height:44px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;padding:0 4px}
+.seg button[aria-pressed=true]{background:var(--raised);color:var(--cream);box-shadow:inset 0 0 0 1px var(--edge)}
+.seg button:disabled{opacity:.45;cursor:not-allowed}
+.shop{margin-bottom:6px}
+.shop .row-title{font-weight:500}
+.order{font-family:var(--head);font-weight:600;color:var(--amber);white-space:nowrap}
+.tank-body{flex:1;min-width:0}
+.tank-body h3{margin:0;font-family:var(--head);font-size:18px;font-weight:600}
+.tb{margin-top:8px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.days{font-family:var(--head);font-size:24px;font-weight:600;margin-top:4px;line-height:1.1}
+.days small{font-family:var(--body);font-size:12.5px;color:var(--muted);font-weight:400;margin-left:4px}
+.assign{display:flex;gap:8px;margin-top:10px}
+.assign select{flex:1;min-width:0}
+
+.totals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.totals .stat .v{font-size:24px}
+
+.empty{background:var(--surface);border:1px dashed var(--edge);border-radius:var(--r);padding:28px 20px;text-align:center}
+.empty h3{font-family:var(--head);margin:0 0 6px;font-size:19px;font-weight:600}
+.empty p{color:var(--muted);margin:0 auto 16px;max-width:44ch}
+
+.modal{position:fixed;inset:0;z-index:50;background:rgba(12,8,6,.74);display:none;align-items:flex-end;justify-content:center}
+.modal.open{display:flex}
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:92dvh;overflow-y:auto;padding:16px 16px calc(18px + env(safe-area-inset-bottom))}
+@media (min-width:640px){.modal{align-items:center;padding:20px}.sheet{border-radius:18px}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.sheet-head h2{font-family:var(--head);font-size:20px;margin:0;font-weight:600;overflow-wrap:anywhere}
+.fld{display:block;margin-bottom:12px}
+.fld>span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;min-height:44px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:16px;color:var(--cream)}
+input:focus,select:focus{border-color:var(--amber);outline:none}
+input[type=date]{color-scheme:dark}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fsec{border-top:1px solid var(--border);margin-top:6px;padding-top:12px}
+.fsec h3{font-family:var(--head);font-size:16px;margin:0 0 4px;font-weight:600}
+.hint,.lead{font-size:13px;color:var(--muted);margin:0 0 10px}
+.lead{font-size:14.5px;color:var(--cream)}
+.frow{display:grid;grid-template-columns:1fr 88px 44px;gap:8px;align-items:center;margin-bottom:10px}
+.frow .stock{grid-column:1/-1;font-size:12px;color:var(--muted);margin-top:-4px}
+.frow .stock.over{color:var(--red)}
+.readout{margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:14px}
+.readout b{font-family:var(--head);color:var(--amber);font-weight:600}
+.ferr{color:var(--red);font-size:13px;min-height:18px;margin:4px 0 8px}
+.sheet-foot{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.token-note{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,16px);opacity:0;pointer-events:none;background:var(--raised);border:1px solid var(--border);border-left:4px solid var(--hop);padding:12px 16px;border-radius:10px;width:max-content;max-width:calc(100vw - 32px);z-index:80;transition:opacity .2s,transform .2s;font-size:14px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.err{border-left-color:var(--red)}
+
+footer{border-top:1px solid var(--border);padding:16px 16px calc(16px + env(safe-area-inset-bottom));text-align:center;color:var(--muted);font-size:13px}
+footer a{display:inline-block;min-height:44px;line-height:44px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="top">
+  <header class="bar">
+    <div class="brand">
+      <span class="num">138</span>
+      <div class="brand-text">
+        <h1>Ferment Log</h1>
+        <div class="synced" id="synced">Not connected</div>
+      </div>
+    </div>
+    <a class="btn ghost home" href="https://augustineiacopelli.github.io/appaday/">AppADay</a>
+    <button type="button" class="btn icon ghost act" id="syncBtn" data-do="sync" aria-label="Sync with sheet"><span>&#x21bb;</span></button>
+    <button type="button" class="btn icon ghost" data-do="settings" aria-label="Settings">&#x2699;&#xFE0E;</button>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" class="tab" role="tab" data-tab="inventory">Inventory<span class="tcount" id="lowCount"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="batches">Batches</button>
+    <button type="button" class="tab" role="tab" data-tab="ferment">Ferment</button>
+    <button type="button" class="tab" role="tab" data-tab="tanks">Tanks</button>
+    <button type="button" class="tab" role="tab" data-tab="packaged">Packaged</button>
+  </nav>
+</div>
+
+<main>
+  <section class="panel" id="p-inventory" role="tabpanel"></section>
+  <section class="panel" id="p-batches" role="tabpanel"></section>
+  <section class="panel" id="p-ferment" role="tabpanel"></section>
+  <section class="panel" id="p-tanks" role="tabpanel"></section>
+  <section class="panel" id="p-packaged" role="tabpanel"></section>
+</main>
+
+<footer>
+  AppADay 138. Your data lives in a Google Sheet you own.<br>
+  <a href="https://augustineiacopelli.github.io/appaday/">Back to the AppADay portfolio</a>
+</footer>
+
+<div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="setTitle">Settings</h2><button type="button" class="btn icon ghost" data-do="close" data-id="settingsModal" aria-label="Close">&times;</button></div>
+    <label class="fld"><span>Web App URL</span><input id="setUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec"></label>
+    <label class="fld"><span>Token</span><input id="setToken" type="password" autocomplete="off" placeholder="From the setup() execution log"></label>
+    <p class="token-note">Both values stay in this browser only. Run setup() in Code.gs to get the token, then deploy the script as a web app to get the URL.</p>
+    <div class="sheet-foot">
+      <button type="button" class="btn act" data-do="testConn">Test connection</button>
+      <button type="button" class="btn primary act" data-do="saveSettings">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="formModal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="formTitle">Form</h2><button type="button" class="btn icon ghost" data-do="close" data-id="formModal" aria-label="Close">&times;</button></div>
+    <div id="formBody"></div>
+    <div class="ferr" id="formErr" role="alert"></div>
+    <div class="sheet-foot">
+      <button type="button" class="btn ghost" data-do="close" data-id="formModal">Cancel</button>
+      <button type="button" class="btn primary act" id="formSubmit" data-do="formSubmit">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="sheet">
+    <div class="sheet-head"><h2 id="confirmTitle">Are you sure?</h2></div>
+    <p class="lead" id="confirmText"></p>
+    <div class="sheet-foot">
+      <button type="button" class="btn ghost" data-do="close" data-id="confirmModal">Cancel</button>
+      <button type="button" class="btn primary act" id="confirmOk" data-do="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="unitHints"><option value="lb"><option value="oz"><option value="kg"><option value="g"><option value="pkg"><option value="each"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var K_SET = 'appaday-138-settings';
+  var K_CACHE = 'appaday-138-cache';
+  var K_TAB = 'appaday-138-tab';
+  var K_FERM = 'appaday-138-ferment-batch';
+
+  var TABLES = ['Inventory', 'Batches', 'BatchIngredients', 'Readings', 'StageLog', 'Tanks', 'Packages'];
+  var NUM_COLS = ['OnHand', 'ReorderAt', 'Par', 'Number', 'VolumeGal', 'TargetOG', 'TargetFG', 'Qty', 'Gravity', 'TempF', 'CapacityGal', 'UnitVolGal', 'UnitCount', 'OnHandUnits'];
+  var STAGES = ['Planned', 'Brewed', 'Fermenting', 'Crashing', 'Carbonating', 'Packaged', 'Kicked'];
+  var STEP_LABELS = ['Planned', 'Brewed', 'Ferment', 'Crash', 'Carb', 'Package', 'Kicked'];
+  var TYPES = ['Grain', 'Hop', 'Yeast', 'Adjunct'];
+  var FORMATS = ['Keg', 'Bottle', 'Can'];
+  var FERM_STAGES = ['Brewed', 'Fermenting', 'Crashing', 'Carbonating'];
+  var TANKABLE = ['Planned', 'Brewed', 'Fermenting', 'Crashing', 'Carbonating'];
+  var TANK_STATUSES = ['Dirty', 'Clean', 'Sanitized'];
+  var TANK_STATE_ORDER = ['Fermenting', 'Crashing', 'Carbonating', 'Reserved', 'Sanitized', 'Clean', 'Dirty'];
+  var TAB_IDS = ['inventory', 'batches', 'ferment', 'tanks', 'packaged'];
+  var DEG = '\u00b0';
+  var ELLIPSIS = '\u2026';
+
+  var PACKAGE_PRESETS = [
+    { label: 'Half barrel keg', format: 'Keg', gal: 15.5 },
+    { label: 'Quarter barrel keg', format: 'Keg', gal: 7.75 },
+    { label: 'Sixtel keg', format: 'Keg', gal: 5.17 },
+    { label: 'Corny keg', format: 'Keg', gal: 5.0 },
+    { label: '12 oz bottle', format: 'Bottle', gal: 0.09375 },
+    { label: '22 oz bomber', format: 'Bottle', gal: 0.171875 },
+    { label: '12 oz can', format: 'Can', gal: 0.09375 },
+    { label: '16 oz can', format: 'Can', gal: 0.125 }
+  ];
+
+  var S = { data: emptyData(), url: '', token: '', savedAt: '', busy: false, tab: 'inventory', fermId: '' };
+  var chart = null;
+  var formHandler = null;
+  var confirmHandler = null;
+  var toastTimer = null;
+  var started = false;
+
+  /* ---------- Utilities ---------- */
+
+  function $(id) { return document.getElementById(id); }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function todayISO() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function isoUTC(iso) { var p = String(iso).split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); }
+  function mmdd(iso) { return String(iso || '').slice(5); }
+  function round(n, d) { var f = Math.pow(10, d); return Math.round(n * f) / f; }
+  function fq(n) { return String(round(Number(n) || 0, 2)); }
+  function sg(n) { return (Number(n) || 0).toFixed(3); }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  function lsGet(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+
+  /* ---------- Data ---------- */
+
+  function emptyData() { var o = {}; TABLES.forEach(function (t) { o[t] = []; }); return o; }
+
+  function normalize(src) {
+    var out = emptyData();
+    if (!src || typeof src !== 'object') return out;
+    TABLES.forEach(function (t) {
+      var rows = Array.isArray(src[t]) ? src[t] : [];
+      out[t] = rows.filter(function (r) { return r && r.ID; }).map(function (r) {
+        var o = {};
+        Object.keys(r).forEach(function (k) {
+          var v = r[k];
+          if (NUM_COLS.indexOf(k) >= 0) o[k] = (k === 'TempF' && (v === '' || v == null)) ? '' : (Number(v) || 0);
+          else o[k] = v == null ? '' : String(v);
+        });
+        if ((t === 'Batches' || t === 'StageLog') && o.Stage === 'Conditioning') o.Stage = 'Crashing';
+        if (t === 'Inventory' && !o.Par) o.Par = 0;
+        if (t === 'Tanks' && TANK_STATUSES.indexOf(o.Status) < 0) o.Status = 'Clean';
+        return o;
+      });
+    });
+    return out;
+  }
+
+  function find(t, id) {
+    var rows = S.data[t];
+    for (var i = 0; i < rows.length; i++) if (rows[i].ID === id) return rows[i];
+    return null;
+  }
+  function byDate(a, b) { return a.Date < b.Date ? -1 : a.Date > b.Date ? 1 : 0; }
+  function byNumDesc(a, b) { return b.Number - a.Number; }
+
+  /* ---------- Calculations (pure) ---------- */
+
+  function readingsFor(batchId, readings) {
+    return (readings || S.data.Readings).filter(function (r) { return r.BatchID === batchId; }).slice().sort(byDate);
+  }
+  function measuredOG(batch, readings) { var r = readingsFor(batch.ID, readings); return r.length ? r[0].Gravity : batch.TargetOG; }
+  function currentSG(batch, readings) { var r = readingsFor(batch.ID, readings); return r.length ? r[r.length - 1].Gravity : measuredOG(batch, readings); }
+  function abv(og, s) { return Math.max(0, round((og - s) * 131.25, 1)); }
+  function attenuation(og, s) { return og > 1 ? Math.round((og - s) / (og - 1) * 100) : 0; }
+  function daysInTank(assigned, today) {
+    if (!assigned) return 0;
+    return Math.floor((isoUTC(today || todayISO()) - isoUTC(assigned)) / 86400000);
+  }
+  function isLow(item) { return Number(item.OnHand) <= Number(item.ReorderAt); }
+  function orderToPar(item) { return item.Par > 0 ? Math.max(0, round(item.Par - item.OnHand, 3)) : 0; }
+  function fillPct(batch, tank) { return batch && tank.CapacityGal > 0 ? Math.min(100, batch.VolumeGal / tank.CapacityGal * 100) : 0; }
+  function tankState(tank, batch) {
+    if (batch) {
+      if (batch.Stage === 'Planned') return 'Reserved';
+      if (batch.Stage === 'Crashing' || batch.Stage === 'Carbonating') return batch.Stage;
+      return 'Fermenting';
+    }
+    return TANK_STATUSES.indexOf(tank.Status) >= 0 ? tank.Status : 'Clean';
+  }
+  function packagedGal(pkgs) { return pkgs.reduce(function (s, p) { return s + Number(p.UnitVolGal) * Number(p.UnitCount); }, 0); }
+  function yieldPct(gal, vol) { return vol > 0 ? gal / vol * 100 : 0; }
+  function lossGal(gal, vol) { return vol - gal; }
+
+  window.FermentCalc = {
+    measuredOG: measuredOG, currentSG: currentSG, abv: abv, attenuation: attenuation,
+    daysInTank: daysInTank, isLow: isLow, orderToPar: orderToPar, fillPct: fillPct, tankState: tankState, packagedGal: packagedGal, yieldPct: yieldPct, lossGal: lossGal,
+    PACKAGE_PRESETS: PACKAGE_PRESETS
+  };
+
+  /* ---------- Network ---------- */
+
+  function getState(url, token) {
+    var u = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token);
+    return fetch(u, { method: 'GET', redirect: 'follow' }).then(function (r) { return r.json(); });
+  }
+
+  function applyState(state, serverTime) {
+    S.data = normalize(state);
+    S.savedAt = serverTime || new Date().toISOString();
+    lsSet(K_CACHE, { state: S.data, savedAt: S.savedAt });
+  }
+
+  function setBusy(b) {
+    S.busy = b;
+    if (b) document.body.classList.add('busy'); else document.body.classList.remove('busy');
+    var btns = document.querySelectorAll('button.act');
+    for (var i = 0; i < btns.length; i++) btns[i].disabled = b;
+    if (!b) renderAll();
+  }
+
+  function refresh(announce) {
+    if (!S.url) { openSettings(); return Promise.resolve(false); }
+    if (S.busy) return Promise.resolve(false);
+    setBusy(true);
+    return getState(S.url, S.token).then(function (j) {
+      if (j && j.ok) { applyState(j.state, j.serverTime); if (announce) toast('Synced with your sheet', 'ok'); return true; }
+      toast((j && j.error) || 'Sync failed.', 'err');
+      return false;
+    }).catch(function () {
+      toast('Could not reach the sheet. Showing saved data.', 'err');
+      return false;
+    }).then(function (ok) { setBusy(false); return ok; });
+  }
+
+  function api(action, data, doneMsg) {
+    if (!S.url) { toast('Add your Web App URL in Settings first.', 'err'); return Promise.resolve(false); }
+    if (S.busy) return Promise.resolve(false);
+    setBusy(true);
+    return fetch(S.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: S.token, action: action, data: data }),
+      redirect: 'follow'
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j && j.ok) { applyState(j.state, j.serverTime); if (doneMsg) toast(doneMsg, 'ok'); return true; }
+      toast((j && j.error) || 'The sheet rejected that change.', 'err');
+      return false;
+    }).catch(function (e) {
+      toast('Could not reach the sheet. ' + (e && e.message ? e.message : ''), 'err');
+      return false;
+    }).then(function (ok) { setBusy(false); return ok; });
+  }
+
+  /* ---------- UI primitives ---------- */
+
+  function toast(msg, kind) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (kind === 'err' ? ' err' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 3400);
+  }
+
+  function btn(label, act, id, cls, extra, dis) {
+    return '<button type="button" class="btn act ' + (cls || '') + '" data-do="' + act + '"' +
+      (id ? ' data-id="' + esc(id) + '"' : '') + (extra ? ' ' + extra : '') +
+      ((S.busy || dis) ? ' disabled' : '') + '>' + label + '</button>';
+  }
+
+  function head(title, meta, actions) {
+    return '<div class="phead"><div><h2>' + esc(title) + '</h2>' + (meta ? '<div class="meta">' + esc(meta) + '</div>' : '') +
+      '</div>' + (actions || '') + '</div>';
+  }
+
+  function emptyBox(title, text, label, act, id) {
+    return '<div class="empty"><h3>' + esc(title) + '</h3><p>' + esc(text) + '</p>' +
+      (label ? btn(esc(label), act, id || '', 'primary') : '') + '</div>';
+  }
+
+  function stageBadge(stage) { return '<span class="stage st-' + esc(stage) + '">' + esc(stage) + '</span>'; }
+
+  function openModal(id) {
+    $(id).classList.add('open');
+    var f = $(id).querySelector('input,select');
+    if (f) { try { f.focus(); } catch (e) { /* ignore */ } }
+  }
+  function closeModal(id) {
+    $(id).classList.remove('open');
+    if (id === 'formModal') { formHandler = null; $('formBody').oninput = null; $('formBody').onchange = null; }
+    if (id === 'confirmModal') confirmHandler = null;
+  }
+
+  function openConfirm(title, text, okLabel, fn) {
+    $('confirmTitle').textContent = title;
+    $('confirmText').textContent = text;
+    $('confirmOk').textContent = okLabel;
+    confirmHandler = fn;
+    openModal('confirmModal');
+  }
+
+  function openForm(title, bodyHTML, submitLabel, onSubmit, onReady) {
+    var body = $('formBody');
+    body.oninput = null;
+    body.onchange = null;
+    $('formTitle').textContent = title;
+    body.innerHTML = bodyHTML;
+    $('formSubmit').textContent = submitLabel;
+    $('formErr').textContent = '';
+    formHandler = onSubmit;
+    openModal('formModal');
+    if (onReady) onReady(body);
+  }
+
+  function submitForm() {
+    if (!formHandler || S.busy) return;
+    var req;
+    try { req = formHandler($('formBody')); } catch (e) { $('formErr').textContent = e.message; return; }
+    $('formErr').textContent = '';
+    api(req.action, req.data, req.done).then(function (ok) { if (ok) closeModal('formModal'); });
+  }
+
+  function fireFormInput() { var b = $('formBody'); if (b.oninput) b.oninput(); }
+
+  /* Form field builders and readers */
+  function fText(name, label, val, attrs) {
+    return '<label class="fld"><span>' + label + '</span><input name="' + name + '" value="' + esc(val == null ? '' : val) + '" ' + (attrs || '') + '></label>';
+  }
+  function fNum(name, label, val, step, attrs) {
+    return fText(name, label, val, 'type="number" inputmode="decimal" step="' + (step || 'any') + '" ' + (attrs || ''));
+  }
+  function fDate(name, label, val) { return fText(name, label, val, 'type="date"'); }
+  function fSelect(name, label, opts, val, attrs) {
+    return '<label class="fld"><span>' + label + '</span><select name="' + name + '" ' + (attrs || '') + '>' + opts.map(function (o) {
+      var v = typeof o === 'object' ? o.v : o, t = typeof o === 'object' ? o.t : o;
+      return '<option value="' + esc(v) + '"' + (String(v) === String(val) ? ' selected' : '') + '>' + esc(t) + '</option>';
+    }).join('') + '</select></label>';
+  }
+  function field(root, name) { var el = root.querySelector('[name="' + name + '"]'); return el ? String(el.value).trim() : ''; }
+  function needText(root, name, label) { var v = field(root, name); if (!v) throw new Error(label + ' is required.'); return v; }
+  function needNum(root, name, label, min, max) {
+    var raw = field(root, name), v = Number(raw);
+    if (raw === '' || !isFinite(v)) throw new Error(label + ' needs a number.');
+    if (min != null && v < min) throw new Error(label + ' must be at least ' + min + '.');
+    if (max != null && v > max) throw new Error(label + ' must be ' + max + ' or less.');
+    return v;
+  }
+  function needDate(root, name) {
+    var v = field(root, name);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('Pick a date.');
+    return v;
+  }
+
+  /* ---------- Rendering ---------- */
+
+  function syncText() {
+    if (!S.url) return 'Not connected';
+    if (!S.savedAt) return 'Not synced yet';
+    var d = new Date(S.savedAt);
+    if (isNaN(d.getTime())) return 'Synced';
+    var t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    var same = d.toDateString() === new Date().toDateString();
+    return 'Synced ' + (same ? '' : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ') + t;
+  }
+
+  function destroyChart() {
+    if (chart) { try { chart.destroy(); } catch (e) { /* ignore */ } chart = null; }
+  }
+
+  function renderAll() {
+    destroyChart();
+    $('synced').textContent = syncText();
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      var on = tabs[i].getAttribute('data-tab') === S.tab;
+      if (on) tabs[i].classList.add('active'); else tabs[i].classList.remove('active');
+      tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    var low = S.data.Inventory.filter(isLow).length;
+    var lc = $('lowCount');
+    lc.textContent = low ? String(low) : '';
+    if (low && S.url) lc.classList.add('show'); else lc.classList.remove('show');
+    lc.setAttribute('aria-label', low + ' low');
+
+    TAB_IDS.forEach(function (t) {
+      var p = $('p-' + t);
+      if (t === S.tab) p.classList.add('active'); else p.classList.remove('active');
+    });
+    var panel = $('p-' + S.tab);
+    if (!S.url) { panel.innerHTML = connectBox(); return; }
+    RENDER[S.tab](panel);
+  }
+
+  function connectBox() {
+    var titles = { inventory: 'Inventory', batches: 'Batches', ferment: 'Ferment', tanks: 'Tanks', packaged: 'Packaged' };
+    return head(titles[S.tab], '', '') + emptyBox('Connect your Google Sheet',
+      'Ferment Log keeps everything in a sheet you own. Open Settings with the gear and paste your Web App URL and token.',
+      'Open settings', 'settings');
+  }
+
+  var RENDER = {
+    inventory: function (p) {
+      var inv = S.data.Inventory;
+      var low = inv.filter(isLow).length;
+      var h = head('Inventory', inv.length ? plural(inv.length, 'item', 'items') + ', ' + low + ' low' : '', btn('Add item', 'addInv', '', 'primary'));
+      if (!inv.length) {
+        p.innerHTML = h + emptyBox('No ingredients yet', 'Add the grain, hops, and yeast on your shelf. New batches draw their ingredients from this stock.', 'Add item', 'addInv');
+        return;
+      }
+      h += shoppingList(inv);
+      var groups = TYPES.concat(['Other']);
+      groups.forEach(function (type) {
+        var items = inv.filter(function (i) { return type === 'Other' ? TYPES.indexOf(i.Type) < 0 : i.Type === type; })
+          .sort(function (a, b) { return a.Name.localeCompare(b.Name); });
+        if (!items.length) return;
+        h += '<h3 class="group">' + esc(type) + '</h3><div class="list">' + items.map(invRow).join('') + '</div>';
+      });
+      p.innerHTML = h;
+    },
+
+    batches: function (p) {
+      var list = S.data.Batches.slice().sort(byNumDesc);
+      var active = list.filter(function (b) { return b.Stage !== 'Kicked'; }).length;
+      var h = head('Batches', list.length ? active + ' active of ' + list.length : '', btn('New batch', 'newBatch', '', 'primary'));
+      if (!list.length) {
+        p.innerHTML = h + emptyBox('No batches yet', 'Plan a batch, pick its ingredients from inventory, and walk it from brew day to the last pour.', 'New batch', 'newBatch');
+        return;
+      }
+      p.innerHTML = h + '<div class="cards">' + list.map(batchCard).join('') + '</div>';
+    },
+
+    ferment: function (p) {
+      var list = S.data.Batches.filter(function (b) { return FERM_STAGES.indexOf(b.Stage) >= 0; }).sort(byNumDesc);
+      var h = head('Ferment', list.length ? plural(list.length, 'batch', 'batches') + ' in progress' : '', '');
+      if (!list.length) {
+        p.innerHTML = h + emptyBox('Nothing in the fermenter', 'Readings open once a batch reaches Brewed. Advance a planned batch from the Batches tab.', 'Go to batches', 'goTab', 'batches');
+        return;
+      }
+      if (!list.some(function (b) { return b.ID === S.fermId; })) { S.fermId = list[0].ID; lsSet(K_FERM, S.fermId); }
+      var b = find('Batches', S.fermId);
+      var rs = readingsFor(b.ID);
+      var og = measuredOG(b), cur = currentSG(b);
+      h += '<div class="fbar"><label class="fld"><span>Batch</span><select id="fermSel">' + list.map(function (x) {
+        return '<option value="' + esc(x.ID) + '"' + (x.ID === b.ID ? ' selected' : '') + '>#' + esc(x.Number) + ' ' + esc(x.Name) + ' (' + esc(x.Stage) + ')</option>';
+      }).join('') + '</select></label>' + btn('Log reading', 'logReading', '', 'primary') + '</div>';
+      h += '<div class="stats">' +
+        stat(sg(og), rs.length ? 'Original gravity, measured' : 'Original gravity, target', 'og') +
+        stat(sg(cur), 'Current gravity, target ' + sg(b.TargetFG)) +
+        stat(abv(og, cur).toFixed(1) + '%', 'ABV so far') +
+        stat(attenuation(og, cur) + '%', 'Apparent attenuation') + '</div>';
+      h += '<div class="chart" id="chartWrap"><canvas id="fermChart" role="img" aria-label="Gravity and temperature over time"></canvas></div>';
+      h += '<h3 class="sectitle">Readings</h3>';
+      if (!rs.length) h += '<div class="empty"><p>No readings yet. Log your first hydrometer or refractometer reading to start the curve.</p>' + btn('Log reading', 'logReading', '', 'primary') + '</div>';
+      else h += '<div class="list">' + rs.slice().reverse().map(readingRow).join('') + '</div>';
+      p.innerHTML = h;
+      buildChart(b, rs);
+    },
+
+    tanks: function (p) {
+      var tanks = S.data.Tanks.slice().sort(function (a, b) { return a.Name.localeCompare(b.Name); });
+      var counts = {};
+      tanks.forEach(function (t) { var st = tankState(t, t.BatchID ? find('Batches', t.BatchID) : null); counts[st] = (counts[st] || 0) + 1; });
+      var meta = TANK_STATE_ORDER.filter(function (st) { return counts[st]; }).map(function (st) { return counts[st] + ' ' + st.toLowerCase(); }).join(', ');
+      var h = head('Tanks', tanks.length ? meta : '', btn('Add tank', 'addTank', '', 'primary'));
+      if (!tanks.length) {
+        p.innerHTML = h + emptyBox('No tanks yet', 'Add each fermenter or bright tank with its capacity to see what is inside and for how long.', 'Add tank', 'addTank');
+        return;
+      }
+      p.innerHTML = h + '<div class="cards">' + tanks.map(tankCard).join('') + '</div>';
+    },
+
+    packaged: function (p) {
+      var pk = S.data.Packages;
+      var ready = S.data.Batches.filter(function (b) { return b.Stage === 'Carbonating'; }).length;
+      var h = head('Packaged', ready ? plural(ready, 'batch', 'batches') + ' ready to package' : 'No batches carbonating', btn('Package a batch', 'packageFor', '', 'primary', '', !ready));
+      h += '<div class="totals">' + FORMATS.map(function (f) {
+        var rows = pk.filter(function (x) { return x.Format === f; });
+        var units = rows.reduce(function (s, x) { return s + x.OnHandUnits; }, 0);
+        var gal = rows.reduce(function (s, x) { return s + x.OnHandUnits * x.UnitVolGal; }, 0);
+        return stat(String(units), (units === 1 ? f : f + 's') + ' on hand, ' + fq(gal) + ' gal');
+      }).join('') + '</div>';
+      var ids = [];
+      pk.forEach(function (x) { if (ids.indexOf(x.BatchID) < 0) ids.push(x.BatchID); });
+      if (!ids.length) {
+        p.innerHTML = h + emptyBox('Nothing packaged yet', 'When a batch finishes carbonating, keg, bottle, or can it here to track what is left.', ready ? 'Package a batch' : '', 'packageFor');
+        return;
+      }
+      var groups = ids.map(function (id) {
+        var rows = pk.filter(function (x) { return x.BatchID === id; });
+        var left = rows.reduce(function (s, x) { return s + x.OnHandUnits; }, 0);
+        return { id: id, batch: find('Batches', id), rows: rows, left: left };
+      }).sort(function (a, b) {
+        if ((a.left > 0) !== (b.left > 0)) return a.left > 0 ? -1 : 1;
+        return (b.batch ? b.batch.Number : 0) - (a.batch ? a.batch.Number : 0);
+      });
+      p.innerHTML = h + '<div class="cards">' + groups.map(goodsCard).join('') + '</div>';
+    }
+  };
+
+  function stat(v, label, cls) {
+    return '<div class="stat ' + (cls || '') + '"><div class="v">' + esc(v) + '</div><div class="l">' + esc(label) + '</div></div>';
+  }
+
+  function shoppingList(inv) {
+    var low = inv.filter(isLow).sort(function (a, b) { return a.Name.localeCompare(b.Name); });
+    if (!low.length) return '';
+    return '<h3 class="group">Shopping list</h3><div class="list shop">' + low.map(function (i) {
+      var q = orderToPar(i);
+      return '<div class="row"><div class="row-main"><div class="row-title">' + esc(i.Name) + '</div>' +
+        '<div class="row-sub">' + fq(i.OnHand) + ' of ' + (i.Par > 0 ? fq(i.Par) + ' ' + esc(i.Unit) + ' par' : 'no par set') + '</div></div>' +
+        '<div class="order">' + (i.Par > 0 ? (q > 0 ? 'Order ' + fq(q) + ' ' + esc(i.Unit) : 'At par') : 'Set par') + '</div></div>';
+    }).join('') + '</div>';
+  }
+
+  function invRow(i) {
+    var low = isLow(i);
+    var minus = -Math.min(1, i.OnHand);
+    return '<div class="row' + (low ? ' is-low' : '') + '">' +
+      '<div class="row-main"><div class="row-title">' + esc(i.Name) + (low ? '<span class="badge low">Low</span>' : '') + '</div>' +
+      '<div class="row-sub">Reorder at ' + fq(i.ReorderAt) + (i.Par > 0 ? ', par ' + fq(i.Par) : '') + ' ' + esc(i.Unit) + '</div></div>' +
+      '<div class="qty">' + fq(i.OnHand) + '<small>' + esc(i.Unit) + '</small></div>' +
+      '<div class="row-btns">' +
+      btn('&minus;', 'adj', i.ID, 'icon', 'data-v="' + minus + '" aria-label="Remove 1 ' + esc(i.Unit) + ' of ' + esc(i.Name) + '"', i.OnHand <= 0) +
+      btn('+', 'adj', i.ID, 'icon', 'data-v="1" aria-label="Add 1 ' + esc(i.Unit) + ' of ' + esc(i.Name) + '"') +
+      btn('Edit', 'editInv', i.ID, 'ghost') + '</div></div>';
+  }
+
+  function stageDate(batchId, stage) {
+    var best = '';
+    S.data.StageLog.forEach(function (l) { if (l.BatchID === batchId && l.Stage === stage && l.Date > best) best = l.Date; });
+    return best;
+  }
+
+  function timeline(b) {
+    var cur = STAGES.indexOf(b.Stage);
+    return '<div class="tl" aria-label="Stage timeline">' + STAGES.map(function (s, i) {
+      var d = stageDate(b.ID, s);
+      var cls = 'step' + (i <= cur ? ' done' : '') + (i === cur ? ' cur' : '');
+      return '<div class="' + cls + '" title="' + s + '">' + STEP_LABELS[i] + '<span class="d">' + (d ? mmdd(d) : '&nbsp;') + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  function batchCard(b) {
+    var tank = b.TankID ? find('Tanks', b.TankID) : null;
+    var ings = S.data.BatchIngredients.filter(function (x) { return x.BatchID === b.ID; }).map(function (x) {
+      var item = find('Inventory', x.InventoryID);
+      return esc(item ? item.Name : 'Removed item') + ' ' + fq(x.Qty) + ' ' + esc(x.Unit);
+    });
+    var action = '';
+    var idx = STAGES.indexOf(b.Stage);
+    if (b.Stage === 'Carbonating') action = btn('Package', 'packageFor', b.ID, 'primary');
+    else if (b.Stage === 'Packaged') action = btn('Mark kicked', 'advance', b.ID, '');
+    else if (idx >= 0 && idx < 4) action = btn('Advance to ' + STAGES[idx + 1], 'advance', b.ID, 'primary');
+    return '<article class="card' + (b.Stage === 'Kicked' ? ' dim' : '') + '"><div class="ctop"><span class="bnum">#' + esc(b.Number) + '</span>' +
+      '<div class="ctitle"><h3>' + esc(b.Name) + '</h3><div class="sub">' + esc(b.Style) + ', ' + fq(b.VolumeGal) + ' gal' +
+      (tank ? ', in ' + esc(tank.Name) : '') + '</div><div class="sub">Target ' + sg(b.TargetOG) + ' to ' + sg(b.TargetFG) + '</div></div>' + stageBadge(b.Stage) + '</div>' +
+      timeline(b) +
+      (ings.length ? '<div class="ings">' + ings.join(', ') + '</div>' : '') +
+      (action ? '<div class="cacts">' + action + '</div>' : '') + '</article>';
+  }
+
+  function readingRow(r) {
+    var temp = r.TempF === '' ? '' : ', ' + fq(r.TempF) + DEG + 'F';
+    return '<div class="row"><div class="row-main"><div class="row-title">' + sg(r.Gravity) + '</div>' +
+      '<div class="row-sub">' + esc(r.Date) + esc(temp) + '</div>' +
+      (r.Note ? '<div class="row-note">' + esc(r.Note) + '</div>' : '') + '</div>' +
+      '<div class="row-btns">' + btn('&times;', 'delReading', r.ID, 'icon ghost danger', 'aria-label="Delete reading from ' + esc(r.Date) + '"') + '</div></div>';
+  }
+
+  function buildChart(b, rs) {
+    var wrap = $('chartWrap');
+    if (!wrap) return;
+    destroyChart();
+    if (!rs.length) { wrap.innerHTML = '<p>The gravity curve appears after your first reading.</p>'; return; }
+    if (typeof Chart === 'undefined') { wrap.innerHTML = '<p>The chart library did not load. Check your connection and sync again.</p>'; return; }
+    var canvas = $('fermChart');
+    var labels = rs.map(function (r) { return mmdd(r.Date); });
+    var grid = 'rgba(58,45,36,0.9)';
+    chart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Gravity', data: rs.map(function (r) { return r.Gravity; }), yAxisID: 'y', borderColor: '#e0a526', backgroundColor: '#e0a526', borderWidth: 2.5, pointRadius: 4, tension: 0.25 },
+          { label: 'Temp F', data: rs.map(function (r) { return r.TempF === '' ? null : r.TempF; }), yAxisID: 'y1', borderColor: '#8fb84a', backgroundColor: '#8fb84a', borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true },
+          { label: 'Target FG', data: labels.map(function () { return b.TargetFG; }), yAxisID: 'y', borderColor: '#b5a48c', borderDash: [6, 5], borderWidth: 1.5, pointRadius: 0 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#f3e9d7', boxWidth: 12, font: { family: 'Inter' } } },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                if (ctx.parsed.y == null) return ctx.dataset.label + ': none';
+                return ctx.dataset.label + ': ' + (ctx.dataset.yAxisID === 'y' ? Number(ctx.parsed.y).toFixed(3) : fq(ctx.parsed.y) + DEG + 'F');
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#b5a48c' }, grid: { color: grid } },
+          y: { position: 'left', ticks: { color: '#e0a526', callback: function (v) { return Number(v).toFixed(3); } }, grid: { color: grid } },
+          y1: { position: 'right', ticks: { color: '#8fb84a' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  var CONE = 484, CYL = 2200, DOME = 410;
+  function levelY(pct) {
+    var a = (CONE + CYL + DOME) * pct / 100;
+    if (a <= CONE) return 94 - Math.sqrt(a);
+    if (a <= CONE + CYL) return 72 - (a - CONE) / 44;
+    return 22 - (a - CONE - CYL) / DOME * 14;
+  }
+
+  function vesselSVG(state, pct, key) {
+    var shell = 'M10 22 Q10 8 32 8 Q54 8 54 22 L54 72 L32 94 L10 72 Z';
+    var stroke = { Fermenting: '#e0a526', Crashing: '#8cc4e8', Carbonating: '#8fb84a', Reserved: '#e0a526', Dirty: '#8a6a4a', Clean: '#b5a48c', Sanitized: '#8fb84a' }[state];
+    var id = 'v' + String(key).replace(/[^A-Za-z0-9]/g, '');
+    var g = '<svg class="vessel" viewBox="0 -6 64 116" role="img" aria-label="' + esc(state) + (pct ? ', about ' + Math.round(pct) + ' percent full' : '') + '">' +
+      '<defs><clipPath id="' + id + '"><path d="' + shell + '"/></clipPath></defs>' +
+      '<path d="' + shell + '" fill="#120d0a"/>';
+    var inner = '';
+    if (pct > 0 && state !== 'Reserved') {
+      var y = levelY(pct);
+      var liquid = state === 'Crashing' ? '#ecc76a' : '#e0a526';
+      inner += '<rect x="0" y="' + y.toFixed(1) + '" width="64" height="' + (96 - y).toFixed(1) + '" fill="' + liquid + '"/>';
+      if (state === 'Crashing') inner += '<rect x="0" y="' + y.toFixed(1) + '" width="64" height="' + (96 - y).toFixed(1) + '" fill="#8cc4e8" opacity=".18"/>';
+      else inner += '<rect x="0" y="' + y.toFixed(1) + '" width="64" height="3.5" fill="#f3e9d7" opacity=".9"/>';
+      var spots = state === 'Carbonating'
+        ? [[18, 84], [24, 76], [30, 88], [36, 70], [42, 80], [46, 64], [20, 62], [28, 56], [38, 52], [44, 46], [16, 44], [32, 40]]
+        : state === 'Fermenting' ? [[22, 80], [34, 74], [42, 60], [26, 52]] : [];
+      var r = state === 'Carbonating' ? 1.1 : 1.8;
+      var bubs = spots.filter(function (s) { return s[1] > y + 5; }).map(function (s) {
+        return '<circle class="bub" cx="' + s[0] + '" cy="' + s[1] + '" r="' + r + '" fill="#f3e9d7"/>';
+      }).join('');
+      if (bubs) inner += '<g>' + bubs + '</g>';
+    }
+    if (state === 'Dirty') {
+      inner += '<path d="M10 66 Q20 62 30 66 T54 64 L54 72 L10 72 Z" fill="#4a3526"/>' +
+        '<circle cx="20" cy="40" r="1.6" fill="#6b4f37"/><circle cx="40" cy="30" r="1.2" fill="#6b4f37"/><circle cx="44" cy="52" r="1.8" fill="#6b4f37"/><circle cx="26" cy="80" r="1.4" fill="#6b4f37"/>';
+    }
+    g += '<g clip-path="url(#' + id + ')">' + inner + '</g>';
+    g += '<path d="' + shell + '" fill="none" stroke="' + stroke + '" stroke-width="2.5" stroke-linejoin="round"' + (state === 'Reserved' ? ' stroke-dasharray="4 3"' : '') + '/>' +
+      '<path d="M14 76 L10 106 M50 76 L54 106 M32 94 L32 101" stroke="' + stroke + '" stroke-width="2.5" stroke-linecap="round" fill="none"/>';
+    if (state === 'Sanitized') g += '<path d="M23 44 L30 52 L42 36" fill="none" stroke="#8fb84a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    if (state === 'Crashing') {
+      [[58, 30], [4, 50]].forEach(function (c) {
+        g += '<path d="M' + c[0] + ' ' + (c[1] - 5) + ' L' + c[0] + ' ' + (c[1] + 5) + ' M' + (c[0] - 4.3) + ' ' + (c[1] - 2.5) + ' L' + (c[0] + 4.3) + ' ' + (c[1] + 2.5) + ' M' + (c[0] - 4.3) + ' ' + (c[1] + 2.5) + ' L' + (c[0] + 4.3) + ' ' + (c[1] - 2.5) + '" stroke="#8cc4e8" stroke-width="1.4" stroke-linecap="round"/>';
+      });
+    }
+    if (state === 'Carbonating') {
+      g += '<line x1="32" y1="8" x2="32" y2="3" stroke="#8fb84a" stroke-width="2"/><circle cx="32" cy="-1" r="4.2" fill="#1a1410" stroke="#8fb84a" stroke-width="1.6"/>' +
+        '<line x1="32" y1="-1" x2="34.6" y2="-3.4" stroke="#f3e9d7" stroke-width="1.3" stroke-linecap="round"/>';
+    }
+    return g + '</svg>';
+  }
+
+  function tankCard(t) {
+    var b = t.BatchID ? find('Batches', t.BatchID) : null;
+    var state = tankState(t, b);
+    var pct = fillPct(b, t);
+    var h = '<article class="card tank">' + vesselSVG(state, pct, t.ID) + '<div class="tank-body">' +
+      '<h3>' + esc(t.Name) + '</h3><div class="sub">' + fq(t.CapacityGal) + ' gal capacity</div>';
+    if (b) {
+      var days = daysInTank(t.AssignedDate);
+      var label = state === 'Reserved' ? 'Reserved for brew day' : state + ', about ' + fq(b.VolumeGal) + ' of ' + fq(t.CapacityGal) + ' gal (' + Math.round(pct) + '%)';
+      h += '<div class="tstate ts-' + state + '">' + esc(label) + '</div>' +
+        '<div class="tb">#' + esc(b.Number) + ' ' + esc(b.Name) + ' ' + stageBadge(b.Stage) + '</div>' +
+        '<div class="days">' + days + '<small>' + (days === 1 ? 'day' : 'days') + ' in tank since ' + esc(mmdd(t.AssignedDate)) + '</small></div>' +
+        '<div class="cacts">' + btn('Release', 'release', t.ID, 'ghost') + '</div>';
+    } else if (t.BatchID) {
+      h += '<div class="tb">Holds a batch that no longer exists</div><div class="cacts">' + btn('Release', 'release', t.ID, 'ghost') + '</div>';
+    } else {
+      h += '<div class="tstate ts-' + state + '">Empty, ' + state.toLowerCase() + '</div>' +
+        '<div class="seg" role="group" aria-label="Tank condition">' + TANK_STATUSES.map(function (st) {
+          return '<button type="button" class="act" data-do="tankStatus" data-id="' + esc(t.ID) + '" data-v="' + st + '" aria-pressed="' + (st === state) + '"' + (S.busy ? ' disabled' : '') + '>' + st + '</button>';
+        }).join('') + '</div>';
+      if (state !== 'Sanitized') {
+        h += '<div class="sub" style="margin-top:8px">Sanitize this tank before filling it.</div>';
+      } else {
+        var cands = S.data.Batches.filter(function (x) {
+          return !x.TankID && TANKABLE.indexOf(x.Stage) >= 0 && x.VolumeGal <= t.CapacityGal;
+        }).sort(byNumDesc);
+        if (cands.length) {
+          h += '<div class="assign"><select id="as-' + esc(t.ID) + '" aria-label="Batch to assign to ' + esc(t.Name) + '">' + cands.map(function (x) {
+            return '<option value="' + esc(x.ID) + '">#' + esc(x.Number) + ' ' + esc(x.Name) + ' (' + fq(x.VolumeGal) + ' gal)</option>';
+          }).join('') + '</select>' + btn('Assign', 'assign', t.ID, 'primary') + '</div>';
+        } else {
+          h += '<div class="sub" style="margin-top:8px">No unassigned batches fit this tank.</div>';
+        }
+      }
+    }
+    return h + '</div></article>';
+  }
+
+  function goodsCard(g) {
+    var b = g.batch;
+    var gal = packagedGal(g.rows);
+    var vol = b ? b.VolumeGal : 0;
+    var summary = b ? 'Packaged ' + fq(gal) + ' of ' + fq(vol) + ' gal. Yield ' + Math.round(yieldPct(gal, vol)) + '%, loss ' + fq(Math.max(0, lossGal(gal, vol))) + ' gal.' : 'Packaged ' + fq(gal) + ' gal.';
+    return '<article class="card' + (g.left ? '' : ' dim') + '"><div class="ctop"><span class="bnum">#' + esc(b ? b.Number : '?') + '</span>' +
+      '<div class="ctitle"><h3>' + esc(b ? b.Name : 'Removed batch') + '</h3><div class="sub">' + esc(summary) + '</div></div>' + (b ? stageBadge(b.Stage) : '') + '</div>' +
+      '<div class="list">' + g.rows.map(function (x) {
+        var none = x.OnHandUnits <= 0;
+        return '<div class="row' + (none ? ' dim' : '') + '"><div class="row-main"><div class="row-title">' + esc(x.UnitLabel) + '</div>' +
+          '<div class="row-sub">' + esc(x.Format) + ', packaged ' + esc(mmdd(x.Date)) + '</div></div>' +
+          '<div class="qty">' + x.OnHandUnits + '<small>of ' + x.UnitCount + '</small></div>' +
+          '<div class="row-btns">' + btn('&minus;1', 'deplete1', x.ID, '', 'aria-label="Deplete one ' + esc(x.UnitLabel) + '"', none) +
+          btn('Deplete' + ELLIPSIS, 'depleteN', x.ID, 'ghost', '', none) + '</div></div>';
+      }).join('') + '</div></article>';
+  }
+
+  /* ---------- Forms ---------- */
+
+  function invForm(item) {
+    var isNew = !item;
+    var body = fText('Name', 'Name', item ? item.Name : '', 'autocomplete="off" placeholder="Pale 2-row"') +
+      '<div class="two">' + fSelect('Type', 'Type', TYPES, item ? item.Type : 'Grain') +
+      fText('Unit', 'Unit', item ? item.Unit : 'lb', 'list="unitHints" autocomplete="off"') + '</div>' +
+      '<div class="two">' + (isNew ? fNum('OnHand', 'On hand', '', 'any', 'min="0" placeholder="0"') : '') +
+      fNum('ReorderAt', 'Reorder at', item ? item.ReorderAt : '', 'any', 'min="0" placeholder="0"') +
+      (isNew ? '' : fNum('Par', 'Par', item.Par || '', 'any', 'min="0" placeholder="Optional"')) + '</div>' +
+      (isNew ? fNum('Par', 'Par (level to order up to)', '', 'any', 'min="0" placeholder="Optional"') : '') +
+      (isNew ? '' : '<p class="hint">Use the plus and minus buttons on the list to change the amount on hand.</p>');
+    openForm(isNew ? 'Add item' : 'Edit ' + item.Name, body, isNew ? 'Add item' : 'Save changes', function (root) {
+      var d = {
+        Name: needText(root, 'Name', 'Name'),
+        Type: field(root, 'Type'),
+        Unit: needText(root, 'Unit', 'Unit'),
+        ReorderAt: needNum(root, 'ReorderAt', 'Reorder at', 0),
+        Par: field(root, 'Par') === '' ? 0 : needNum(root, 'Par', 'Par', 0)
+      };
+      if (d.Par > 0 && d.Par < d.ReorderAt) throw new Error('Par must be at or above the reorder level.');
+      if (isNew) { d.OnHand = needNum(root, 'OnHand', 'On hand', 0); return { action: 'addInventory', data: d, done: 'Item added' }; }
+      d.ID = item.ID;
+      return { action: 'updateInventory', data: d, done: 'Changes saved' };
+    });
+  }
+
+  function batchForm() {
+    var next = S.data.Batches.reduce(function (m, b) { return Math.max(m, b.Number); }, 0) + 1;
+    var body = '<div class="two">' + fNum('Number', 'Batch number', next, '1', 'min="1"') + fNum('VolumeGal', 'Volume (gal)', 5, 'any', 'min="0"') + '</div>' +
+      fText('Name', 'Name', '', 'autocomplete="off" placeholder="Harvest Moon"') +
+      fText('Style', 'Style', '', 'autocomplete="off" placeholder="Amber ale"') +
+      '<div class="two">' + fNum('TargetOG', 'Target OG', '1.050', '0.001') + fNum('TargetFG', 'Target FG', '1.010', '0.001') + '</div>' +
+      '<div class="fsec"><h3>Ingredients</h3><p class="hint">' + (S.data.Inventory.length ? 'Quantities come out of inventory when you save.' : 'Add items on the Inventory tab to draw ingredients from stock.') + '</p>' +
+      '<div id="ingRows"></div>' + (S.data.Inventory.length ? btn('Add ingredient', 'addIngRow', '', 'ghost') : '') + '</div>';
+    openForm('New batch', body, 'Create batch', function (root) {
+      var og = needNum(root, 'TargetOG', 'Target OG', 1.0, 1.2);
+      var fg = needNum(root, 'TargetFG', 'Target FG', 0.98, 1.2);
+      if (fg >= og) throw new Error('Target FG must be lower than target OG.');
+      var num = needNum(root, 'Number', 'Batch number', 1);
+      if (Math.floor(num) !== num) throw new Error('Batch number must be a whole number.');
+      if (S.data.Batches.some(function (b) { return b.Number === num; })) throw new Error('Batch #' + num + ' already exists.');
+      var d = {
+        Number: num,
+        Name: needText(root, 'Name', 'Name'),
+        Style: needText(root, 'Style', 'Style'),
+        VolumeGal: needNum(root, 'VolumeGal', 'Volume', 0.1),
+        TargetOG: og,
+        TargetFG: fg,
+        Ingredients: collectIngredients(root)
+      };
+      return { action: 'createBatch', data: d, done: 'Batch #' + num + ' created' };
+    }, function (body2) {
+      if (S.data.Inventory.length) addIngRow();
+      body2.oninput = updateIngStock;
+      body2.onchange = updateIngStock;
+    });
+  }
+
+  function addIngRow() {
+    var wrap = $('ingRows');
+    if (!wrap) return;
+    var items = S.data.Inventory.slice().sort(function (a, b) {
+      return (TYPES.indexOf(a.Type) - TYPES.indexOf(b.Type)) || a.Name.localeCompare(b.Name);
+    });
+    var div = document.createElement('div');
+    div.className = 'frow';
+    div.innerHTML = '<select name="ingItem" aria-label="Ingredient"><option value="">Choose item</option>' + items.map(function (i) {
+      return '<option value="' + esc(i.ID) + '">' + esc(i.Name) + ' (' + esc(i.Type) + ')</option>';
+    }).join('') + '</select><input name="ingQty" type="number" inputmode="decimal" step="any" min="0" placeholder="Qty" aria-label="Quantity">' +
+      '<button type="button" class="btn icon ghost" data-do="rmRow" aria-label="Remove row">&times;</button><div class="stock"></div>';
+    wrap.appendChild(div);
+    updateIngStock();
+  }
+
+  function ingTotals() {
+    var totals = {};
+    var rows = document.querySelectorAll('#ingRows .frow');
+    for (var i = 0; i < rows.length; i++) {
+      var id = rows[i].querySelector('[name=ingItem]').value;
+      var q = Number(rows[i].querySelector('[name=ingQty]').value) || 0;
+      if (id) totals[id] = (totals[id] || 0) + q;
+    }
+    return totals;
+  }
+
+  function updateIngStock() {
+    var totals = ingTotals();
+    var rows = document.querySelectorAll('#ingRows .frow');
+    for (var i = 0; i < rows.length; i++) {
+      var id = rows[i].querySelector('[name=ingItem]').value;
+      var out = rows[i].querySelector('.stock');
+      var item = id ? find('Inventory', id) : null;
+      if (!item) { out.textContent = ''; out.classList.remove('over'); continue; }
+      var over = totals[id] > item.OnHand + 1e-9;
+      out.textContent = over ? 'Only ' + fq(item.OnHand) + ' ' + item.Unit + ' on hand' : fq(item.OnHand) + ' ' + item.Unit + ' on hand';
+      if (over) out.classList.add('over'); else out.classList.remove('over');
+    }
+  }
+
+  function collectIngredients(root) {
+    var out = [];
+    var rows = root.querySelectorAll('#ingRows .frow');
+    for (var i = 0; i < rows.length; i++) {
+      var id = rows[i].querySelector('[name=ingItem]').value;
+      var raw = rows[i].querySelector('[name=ingQty]').value.trim();
+      if (!id && !raw) continue;
+      if (!id) throw new Error('Choose an item for each ingredient row.');
+      var q = Number(raw);
+      if (!(q > 0)) throw new Error('Each ingredient needs a quantity above 0.');
+      out.push({ InventoryID: id, Qty: q });
+    }
+    var totals = ingTotals();
+    Object.keys(totals).forEach(function (id) {
+      var item = find('Inventory', id);
+      if (!item || totals[id] > item.OnHand + 1e-9) throw new Error('Not enough ' + (item ? item.Name : 'stock') + ' on hand.');
+    });
+    return out;
+  }
+
+  function advanceForm(id) {
+    var b = find('Batches', id);
+    if (!b) return;
+    if (b.Stage === 'Carbonating') { packageForm(id); return; }
+    var next = STAGES[STAGES.indexOf(b.Stage) + 1];
+    if (!next) return;
+    var body = '<p class="lead">Moves #' + esc(b.Number) + ' ' + esc(b.Name) + ' from ' + esc(b.Stage) + ' to ' + esc(next) + '.</p>' + fDate('Date', 'Date', todayISO());
+    openForm(next === 'Kicked' ? 'Mark kicked' : 'Advance batch', body, next === 'Kicked' ? 'Mark kicked' : 'Advance to ' + next, function (root) {
+      return { action: 'advanceStage', data: { BatchID: id, Date: needDate(root, 'Date') }, done: '#' + b.Number + ' moved to ' + next };
+    });
+  }
+
+  function readingForm() {
+    var b = find('Batches', S.fermId);
+    if (!b) { toast('Choose a batch first.', 'err'); return; }
+    var body = '<p class="hint">#' + esc(b.Number) + ' ' + esc(b.Name) + ', last gravity ' + sg(currentSG(b)) + '</p>' + fDate('Date', 'Date', todayISO()) +
+      '<div class="two">' + fNum('Gravity', 'Gravity (SG)', '', '0.001', 'placeholder="' + sg(currentSG(b)) + '"') +
+      fNum('TempF', 'Temp (' + DEG + 'F)', '', '0.1', 'placeholder="Optional"') + '</div>' +
+      fText('Note', 'Note', '', 'autocomplete="off" placeholder="Dry hopped, krausen dropping"');
+    openForm('Log reading', body, 'Save reading', function (root) {
+      var tRaw = field(root, 'TempF');
+      var d = {
+        BatchID: b.ID,
+        Date: needDate(root, 'Date'),
+        Gravity: needNum(root, 'Gravity', 'Gravity', 0.98, 1.2),
+        TempF: tRaw === '' ? '' : needNum(root, 'TempF', 'Temperature', 20, 220),
+        Note: field(root, 'Note')
+      };
+      return { action: 'logReading', data: d, done: 'Reading saved' };
+    });
+  }
+
+  function tankForm() {
+    var body = fText('Name', 'Name', '', 'autocomplete="off" placeholder="Fermenter A"') +
+      '<div class="two">' + fNum('CapacityGal', 'Capacity (gal)', '', 'any', 'min="0" placeholder="7"') + fSelect('Status', 'Condition', TANK_STATUSES, 'Clean') + '</div>';
+    openForm('Add tank', body, 'Add tank', function (root) {
+      return { action: 'addTank', data: { Name: needText(root, 'Name', 'Name'), CapacityGal: needNum(root, 'CapacityGal', 'Capacity', 0.1), Status: field(root, 'Status') }, done: 'Tank added' };
+    });
+  }
+
+  function packageForm(presetId) {
+    var cands = S.data.Batches.filter(function (b) { return b.Stage === 'Carbonating'; }).sort(byNumDesc);
+    if (!cands.length) { toast('No batches are carbonating yet.', 'err'); return; }
+    var sel = presetId && cands.some(function (b) { return b.ID === presetId; }) ? presetId : cands[0].ID;
+    var body = fSelect('BatchID', 'Batch', cands.map(function (b) {
+      return { v: b.ID, t: '#' + b.Number + ' ' + b.Name + ' (' + fq(b.VolumeGal) + ' gal)' };
+    }), sel) + fDate('Date', 'Package date', todayISO()) +
+      '<div class="fsec"><h3>Formats</h3><div id="pkgRows"></div>' + btn('Add format', 'addPkgRow', '', 'ghost') + '</div>' +
+      '<div class="readout" id="pkgOut"></div>';
+    openForm('Package a batch', body, 'Package batch', function (root) {
+      var list = collectPackages(root);
+      if (!list.length) throw new Error('Add at least one format with a unit count.');
+      return { action: 'packageBatch', data: { BatchID: field(root, 'BatchID'), Date: needDate(root, 'Date'), Packages: list }, done: 'Batch packaged' };
+    }, function (body2) {
+      addPkgRow();
+      body2.oninput = updatePkgOut;
+      body2.onchange = updatePkgOut;
+    });
+  }
+
+  function addPkgRow() {
+    var wrap = $('pkgRows');
+    if (!wrap) return;
+    var used = wrap.querySelectorAll('.frow').length;
+    var div = document.createElement('div');
+    div.className = 'frow';
+    div.innerHTML = '<select name="pkgPreset" aria-label="Package format">' + PACKAGE_PRESETS.map(function (p, i) {
+      return '<option value="' + i + '"' + (i === (used ? 4 : 3) ? ' selected' : '') + '>' + esc(p.label) + '</option>';
+    }).join('') + '</select><input name="pkgCount" type="number" inputmode="numeric" step="1" min="1" placeholder="Units" aria-label="Unit count">' +
+      '<button type="button" class="btn icon ghost" data-do="rmRow" aria-label="Remove row">&times;</button>';
+    wrap.appendChild(div);
+    updatePkgOut();
+  }
+
+  function readPkgRows(root, strict) {
+    var out = [];
+    var rows = (root || document).querySelectorAll('#pkgRows .frow');
+    for (var i = 0; i < rows.length; i++) {
+      var p = PACKAGE_PRESETS[Number(rows[i].querySelector('[name=pkgPreset]').value)];
+      var raw = rows[i].querySelector('[name=pkgCount]').value.trim();
+      if (!raw) continue;
+      var n = Number(raw);
+      if (!(n >= 1) || Math.floor(n) !== n) { if (strict) throw new Error('Unit counts must be whole numbers of 1 or more.'); continue; }
+      if (p) out.push({ Format: p.format, UnitLabel: p.label, UnitVolGal: p.gal, UnitCount: n });
+    }
+    return out;
+  }
+  function collectPackages(root) { return readPkgRows(root, true); }
+
+  function updatePkgOut() {
+    var out = $('pkgOut');
+    if (!out) return;
+    var b = find('Batches', field($('formBody'), 'BatchID'));
+    var gal = packagedGal(readPkgRows(null, false));
+    var vol = b ? b.VolumeGal : 0;
+    out.innerHTML = '<b>' + fq(gal) + ' gal</b> packaged of ' + fq(vol) + '. Yield <b>' + Math.round(yieldPct(gal, vol)) + '%</b>, loss <b>' + fq(lossGal(gal, vol)) + ' gal</b>.';
+  }
+
+  function depleteForm(id) {
+    var p = find('Packages', id);
+    if (!p) return;
+    var body = '<p class="lead">' + esc(p.UnitLabel) + ', ' + p.OnHandUnits + ' of ' + p.UnitCount + ' left.</p>' +
+      fNum('Units', 'Units to deplete', 1, '1', 'min="1" max="' + p.OnHandUnits + '"');
+    openForm('Deplete ' + p.UnitLabel, body, 'Deplete units', function (root) {
+      var n = needNum(root, 'Units', 'Units', 1, p.OnHandUnits);
+      if (Math.floor(n) !== n) throw new Error('Units must be a whole number.');
+      return { action: 'depleteGoods', data: { ID: id, Units: n }, done: plural(n, 'unit', 'units') + ' depleted' };
+    });
+  }
+
+  /* ---------- Settings ---------- */
+
+  function openSettings() {
+    $('setUrl').value = S.url;
+    $('setToken').value = S.token;
+    openModal('settingsModal');
+  }
+
+  function testConnection() {
+    var url = $('setUrl').value.trim(), token = $('setToken').value.trim();
+    if (!/^https:\/\//.test(url)) { toast('Paste the full https Web App URL.', 'err'); return; }
+    if (!token) { toast('Paste the token from the setup() log.', 'err'); return; }
+    setBusy(true);
+    getState(url, token).then(function (j) {
+      if (j && j.ok) {
+        var s = normalize(j.state);
+        toast('Connected. ' + plural(s.Batches.length, 'batch', 'batches') + ', ' + plural(s.Inventory.length, 'item', 'items') + '.', 'ok');
+      } else toast((j && j.error) || 'Connection failed.', 'err');
+    }).catch(function () {
+      toast('No response. Check the URL and that access is set to Anyone.', 'err');
+    }).then(function () { setBusy(false); });
+  }
+
+  function saveSettings() {
+    var url = $('setUrl').value.trim(), token = $('setToken').value.trim();
+    if (url && !/^https:\/\//.test(url)) { toast('Paste the full https Web App URL.', 'err'); return; }
+    S.url = url;
+    S.token = token;
+    lsSet(K_SET, { url: url, token: token });
+    closeModal('settingsModal');
+    renderAll();
+    if (url) refresh(true); else toast('Settings cleared', 'ok');
+  }
+
+  /* ---------- Events ---------- */
+
+  function switchTab(t) {
+    if (TAB_IDS.indexOf(t) < 0) return;
+    S.tab = t;
+    lsSet(K_TAB, t);
+    renderAll();
+  }
+
+  var UI = {
+    close: function (id) { closeModal(id); },
+    settings: openSettings,
+    sync: function () { refresh(true); },
+    testConn: testConnection,
+    saveSettings: saveSettings,
+    formSubmit: submitForm,
+    confirmOk: function () { var f = confirmHandler; closeModal('confirmModal'); if (f) f(); },
+    goTab: function (id) { switchTab(id); },
+    addInv: function () { invForm(null); },
+    editInv: function (id) { var i = find('Inventory', id); if (i) invForm(i); },
+    adj: function (id, el) {
+      var i = find('Inventory', id);
+      var delta = Number(el.getAttribute('data-v'));
+      if (!i || !delta) return;
+      api('adjustInventory', { ID: id, Delta: delta }, i.Name + (delta > 0 ? ' increased' : ' decreased'));
+    },
+    newBatch: batchForm,
+    addIngRow: function () { addIngRow(); },
+    addPkgRow: function () { addPkgRow(); },
+    rmRow: function (id, el) {
+      var r = el.closest('.frow');
+      if (r && r.parentNode) r.parentNode.removeChild(r);
+      fireFormInput();
+    },
+    advance: advanceForm,
+    packageFor: function (id) { packageForm(id); },
+    logReading: readingForm,
+    delReading: function (id) {
+      var r = find('Readings', id);
+      if (!r) return;
+      openConfirm('Delete reading?', 'Remove the ' + sg(r.Gravity) + ' reading from ' + r.Date + '. This cannot be undone.', 'Delete reading', function () {
+        api('deleteReading', { ID: id }, 'Reading deleted');
+      });
+    },
+    addTank: tankForm,
+    assign: function (id) {
+      var s = $('as-' + id);
+      if (!s || !s.value) return;
+      api('assignTank', { TankID: id, BatchID: s.value, Date: todayISO() }, 'Batch assigned');
+    },
+    release: function (id) {
+      var t = find('Tanks', id);
+      if (!t) return;
+      openConfirm('Release ' + t.Name + '?', 'The tank will show as empty and dirty. The batch keeps its current stage.', 'Release tank', function () {
+        api('releaseTank', { TankID: id }, t.Name + ' released');
+      });
+    },
+    tankStatus: function (id, el) {
+      var t = find('Tanks', id), st = el.getAttribute('data-v');
+      if (!t || t.Status === st) return;
+      api('setTankStatus', { TankID: id, Status: st }, t.Name + ' marked ' + st.toLowerCase());
+    },
+    deplete1: function (id) { api('depleteGoods', { ID: id, Units: 1 }, '1 unit depleted'); },
+    depleteN: depleteForm
+  };
+
+  function onClick(e) {
+    var t = e.target.closest ? e.target.closest('[data-tab],[data-do]') : null;
+    if (t) {
+      if (t.disabled) return;
+      var tab = t.getAttribute('data-tab');
+      if (tab) { switchTab(tab); return; }
+      var fn = UI[t.getAttribute('data-do')];
+      if (fn) { e.preventDefault(); fn(t.getAttribute('data-id') || '', t); }
+      return;
+    }
+    if (e.target.classList && e.target.classList.contains('modal')) closeModal(e.target.id);
+  }
+
+  function onChange(e) {
+    if (e.target && e.target.id === 'fermSel') {
+      S.fermId = e.target.value;
+      lsSet(K_FERM, S.fermId);
+      renderAll();
+    }
+  }
+
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      var order = ['confirmModal', 'formModal', 'settingsModal'];
+      for (var i = 0; i < order.length; i++) {
+        if ($(order[i]).classList.contains('open')) { closeModal(order[i]); return; }
+      }
+    }
+    if (e.key === 'Enter' && $('formModal').classList.contains('open') && e.target && e.target.tagName === 'INPUT') {
+      e.preventDefault();
+      submitForm();
+    }
+  }
+
+  /* ---------- Init ---------- */
+
+  function init() {
+    if (started) return;
+    started = true;
+    var st = lsGet(K_SET);
+    if (st) { S.url = st.url || ''; S.token = st.token || ''; }
+    var c = lsGet(K_CACHE);
+    if (c && c.state) { S.data = normalize(c.state); S.savedAt = c.savedAt || ''; }
+    var t = lsGet(K_TAB);
+    if (TAB_IDS.indexOf(t) >= 0) S.tab = t;
+    var f = lsGet(K_FERM);
+    if (f) S.fermId = f;
+    document.addEventListener('click', onClick);
+    document.addEventListener('change', onChange);
+    document.addEventListener('keydown', onKey);
+    renderAll();
+    if (S.url) refresh(false);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
+</body>
+</html>
